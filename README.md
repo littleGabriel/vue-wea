@@ -1,4 +1,4 @@
-# vue
+# vue-wea
 
 ## Project setup
 ```

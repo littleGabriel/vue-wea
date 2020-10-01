@@ -104,7 +104,7 @@
     <div class="mdc-snackbar mySnackbar">
         <div class="mdc-snackbar__surface">
             <div class="mdc-snackbar__label font-weight-light" role="status" aria-live="polite">
-                {{dataDoneTx}}
+                {{snackbarTx}}
             </div>
         </div>
     </div>
@@ -174,7 +174,9 @@
               dailyData:[],
               dailyDataExt:[],
               dailyDataNum:7,
+              dailyUdt:'',
               nowData:[],
+              nowUdt:'',
               hourlyData:[],
               lifeData:[],
               lifeText:'',
@@ -182,9 +184,10 @@
               airData:[],
               cityData:[],
               searchCity:'',
+              chcFlag:true,
               location:'101280703',
               cityName:'珠海',
-              dataDoneTx:'数据加载完成<(￣︶￣)>',
+              snackbarTx:'',
           }
         },
         computed:{
@@ -212,20 +215,20 @@
                 fetch('https://geoapi.heweather.net/v2/city/lookup?location='+val+'&key=5bb20c4da2c3457bb0ee0a709bbea01e')
                     .then(response => response.json())
                     .catch(err => console.error(err))
-                    .then(response => {
-                        this.cityData = response.location;
+                    .then(response => this.cityData = response.location)
+                    .then(()=>{
                         const chipSetEl2 = document.querySelector('.mdc-chip-set2');
-                        const chipSet2 = new MDCChipSet(chipSetEl2);//eslint-disable-line no-unused-vars
+                        new MDCChipSet(chipSetEl2);
                     });
                 //热门城市
                 if (val===''){
                     fetch('https://geoapi.heweather.net/v2/city/top?key=5bb20c4da2c3457bb0ee0a709bbea01e&number=20')
                         .then(response => response.json())
                         .catch(err => console.error(err))
-                        .then(response => {
-                            this.cityData = response.topCityList;
+                        .then(response => this.cityData = response.topCityList)
+                        .then(()=>{
                             const chipSetEl2 = document.querySelector('.mdc-chip-set2');
-                            const chipSet2 = new MDCChipSet(chipSetEl2);//eslint-disable-line no-unused-vars
+                            new MDCChipSet(chipSetEl2);
                         });
                 }
             },
@@ -242,41 +245,57 @@
                 this.cityName = name;
                 localStorage.setItem('location',id);
                 localStorage.setItem('cityName',name);
+                this.chcFlag=true;
                 this.update();
             },
             swn(){
                 this.dailyDataNum = (this.dailyDataNum===7) ? 15 : 7;
-                if (this.dailyDataNum===15){
-                    this.dailyData=[...this.dailyData,...this.dailyDataExt];
-                }
-                else {
-                    this.dailyData=this.dailyData.slice(0,7);
-                }
+                if (this.dailyDataNum===15) this.dailyData=[...this.dailyData,...this.dailyDataExt];
+                else this.dailyData=this.dailyData.slice(0,7);
             },
             update(){
                 this.dailyDataNum=7;
                 document.getElementById('myFabIcon').classList.add('rotateFab');
+                setTimeout(()=>{
+                    document.getElementById('myFabIcon').classList.remove('rotateFab');
+                },1000);
                 //15天预报
                 fetch('https://devapi.heweather.net/v7/weather/15d?location='+this.location+'&key=5bb20c4da2c3457bb0ee0a709bbea01e')
                     .then(response => response.json())
                     .catch(err => console.error(err))
                     .then(response => {
-                        this.dailyData = response.daily.slice(0,7);
-                        this.dailyDataExt = response.daily.slice(7)
+                        if (response.updateTime!==this.dailyUdt||this.chcFlag){
+                            this.dailyData = response.daily.slice(0,7);
+                            this.dailyDataExt = response.daily.slice(7);
+                            this.dailyUdt = response.updateTime;
+                        }
                     });
                 //实况天气
                 fetch('https://devapi.heweather.net/v7/weather/now?location='+this.location+'&key=5bb20c4da2c3457bb0ee0a709bbea01e')
                     .then(response => response.json())
                     .catch(err => console.error(err))
                     .then(response => {
-                        this.nowData = response.now;
-                        this.nowData.obsTime = this.nowData.obsTime.substr(11,5);
-                        let bdClass = 'sunny';
-                        let cloudyCode = [104,154,300,301,302,303,304,305,306,307,308,309,
-                            310,311,312,313,314,315,316,317,318,350,351,399];
-                        if (cloudyCode.includes(parseInt(this.nowData.icon))) bdClass='cloudy';
-                        const body = document.getElementsByTagName('body')[0];
-                        body.setAttribute('class',bdClass)
+                        if (response.updateTime!==this.nowUdt||this.chcFlag){
+                            this.nowData = response.now;
+                            this.nowData.obsTime = this.nowData.obsTime.substr(11,5);
+                            let bdClass = 'sunny';
+                            let cloudyCode = [104,154,300,301,302,303,304,305,306,307,308,309,
+                                310,311,312,313,314,315,316,317,318,350,351,399];
+                            if (cloudyCode.includes(parseInt(this.nowData.icon))) bdClass='cloudy';
+                            const body = document.getElementsByTagName('body')[0];
+                            body.setAttribute('class',bdClass);
+
+                            this.nowUdt = response.updateTime;
+                            this.snackbarTx = '数据更新完成<(￣︶￣)>';
+                        }
+                        else {this.snackbarTx = '数据暂无更新';}
+                        setTimeout(()=>{
+                            //snackbar
+                            const snackbar = new MDCSnackbar(document.querySelector('.mdc-snackbar'));
+                            snackbar.open();
+                            this.chcFlag=false;
+                        },1000);
+
                     });
                 //24h天气
                 fetch('https://devapi.heweather.net/v7/weather/24h?location='+this.location+'&key=5bb20c4da2c3457bb0ee0a709bbea01e')
@@ -365,12 +384,6 @@
                                     data: this.hourlyPrecip
                                 }]
                         });
-                        setTimeout(()=>{
-                            document.getElementById('myFabIcon').classList.remove('rotateFab');
-                            //snackbar
-                            const snackbar = new MDCSnackbar(document.querySelector('.mdc-snackbar'));//eslint-disable-line no-unused-vars
-                            snackbar.open();
-                        },1000);
                     });
                 //生活指数
                 fetch('https://devapi.heweather.net/v7/indices/1d?location='+this.location+'&key=5bb20c4da2c3457bb0ee0a709bbea01e&type=1,3,5,6,8,10,11,15')
@@ -381,24 +394,14 @@
                         this.lifeText = this.lifeData[Math.floor(Math.random()*8)].text;
                         clearInterval(this.lifeTxInt);
                         this.lifeTxInt = setInterval(()=>{
-                            console.log("lifeTxInt ",this.lifeTxInt);
-                            // new Promise((resolve) => {
-                            //     console.log('old(',(new Date).getSeconds(),'):',this.lifeText);
-                            //     document.getElementById('lifeText').style.opacity='0';
-                            //     setTimeout(resolve, 1000);
-                            // }).then(()=>{
-                            //     this.lifeText = this.lifeData[Math.floor(Math.random()*8)].text;
-                            //     console.log('     new(',(new Date).getSeconds(),'):',this.lifeText);
-                            //     document.getElementById('lifeText').style.opacity='1';
-                            // });
-                            console.log('old(',(new Date).getSeconds(),'):',this.lifeText);
+                            // console.log("lifeTxInt ",this.lifeTxInt);
+                            // console.log('old(',(new Date).getSeconds(),'):',this.lifeText);
                             document.getElementById('lifeText').style.opacity='0';
                             setTimeout(()=>{
                                 this.lifeText = this.lifeData[Math.floor(Math.random()*8)].text;
-                                console.log('     new(',(new Date).getSeconds(),'):',this.lifeText);
                                 document.getElementById('lifeText').style.opacity='1';
                             }, 1000);
-                        },10*1000);
+                        },20*1000);
                     });
                 //实况空气质量
                 fetch('https://devapi.heweather.net/v7/air/now?location='+this.location+'&key=5bb20c4da2c3457bb0ee0a709bbea01e')
@@ -435,10 +438,10 @@
             fetch('https://geoapi.heweather.net/v2/city/top?key=5bb20c4da2c3457bb0ee0a709bbea01e&number=20')
                 .then(response => response.json())
                 .catch(err => console.error(err))
-                .then(response => {
-                    this.cityData = response.topCityList;
+                .then(response => this.cityData = response.topCityList)
+                .then(()=>{
                     const chipSetEl2 = document.querySelector('.mdc-chip-set2');
-                    const chipSet2 = new MDCChipSet(chipSetEl2);//eslint-disable-line no-unused-vars
+                    new MDCChipSet(chipSetEl2);
                 });
             const chipSetEl = document.querySelector('.mdc-chip-set1');
             const chipSet = new MDCChipSet(chipSetEl);//eslint-disable-line no-unused-vars
