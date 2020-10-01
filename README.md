@@ -1,5 +1,8 @@
 # vue-wea
 
+## Demo
+https://wea.stack42.xyz/
+
 ## Project setup
 ```
 npm install
