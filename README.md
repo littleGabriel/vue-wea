@@ -1,7 +1,7 @@
 # vue-wea
 
 ## Demo
-https://wea.stack42.xyz/
+http://wea.nahco3.co/
 
 ## Project setup
 ```
